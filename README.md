@@ -2,7 +2,7 @@
 A very good configuration of VIM.
 
 # How to use
-0, install Vim7.0+. 
+0, install Vim7.0+.<br>
 1, git .vim/.vimrc/util in your home dir(~).
 2, make sure you have installed ctag/cscope on your OS.
 3, use util/genctags to generate ctags; util/genfiletags to generate filetags; util/genscopefiles to generate cscopefiles
