@@ -1,0 +1,9 @@
+#!/bin/sh
+# generate tag file for lookupfile plugin
+echo
+echo -e "!_TAG_FILE_SORTED\t2\t/2=foldcase/"> filenametags
+find . -not -regex '.*\.\(png\|gif\|svn\)' -type f -printf "%f\t%p\t1\n" | sort -f>> filenametags &
+echo "The tag file list is generating in the background"
+echo "It will be completed in a few seconds, good luck!"
+echo
+echo

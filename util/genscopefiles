@@ -1,0 +1,20 @@
+#!/bin/sh
+echo
+echo
+echo
+echo "Generating cscope file list"
+echo "This script maybe taken long time, depending on how many file related"
+echo "Waitting..."
+
+find . -name '*.java' -o -name '*.c' -o -name '*.h' -o -name '*.cpp' -o -name '*.js' -o -name '*.py' -o -name '*.sh' -o -name '*.S' >>cscope.files &
+
+
+echo "Congratulations! The file cscope.files will be generited soon, be pation pls!"
+echo "You have to sed the file list to your Dir"
+echo "For example: cat cscope.files_test | sed -e "s/^\/home\/suijunqiang\/dev\/tide_104/\./g">cscope.files_test1"
+echo "If you have any trouble at this moment, contact junqiang.sui@mailsh.techfaith.cn"
+echo "Any comments will expected!"
+echo "The generating process is running at background, waitting for a moment pls!"
+echo
+echo
+echo

@@ -1,0 +1,1 @@
+nohup ctags -R --languages=all --fields=+iaS --extra=+q . &

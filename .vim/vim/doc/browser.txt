@@ -1,0 +1,1346 @@
+*browser.txt*                     a WWW browser plugin for vim
+
+                      Version 1.1. For vim version 6.3
+
+          VIM REFERENCE MANUAL  by Moshe Kaminsky <kaminsky@math.huji.ac.il>
+
+*browser* *browser.vim*
+
+
+This plugin provides basic web browsing and html viewing capabilities. It uses
+vim's ability to embed perl, and Perl's HTTP modules. The full list of
+dependencies is available in the "INSTALL" file.
+
+Example:
+>
+        :Browse vim.sf.net
+<
+will open a well known web site.
+
+The plugin is not loaded when 'compatible' is set. Loading the plugin can be
+disabled by setting "g:browser_plugin_version" before "plugin/browser.vim" is
+read.
+
+There is also a standalone script, "vimbrowse.pl", which can be used from the
+command line to run vim in browser mode, like any other browser. It contains
+its own documentation in pod form. To view it, run
+>
+        vimbrowse.pl --man
+<
+or
+>
+        perldoc vimbrowse.pl
+<
+or use the included man page.
+
+                                                *browser-documentation*
+DOCUMENTATION ~
+
+This help text is translated from the "browser.pod" file in the package
+directory.  You can use that file for viewing the documentation from the
+command line, like this:
+>
+        perldoc browser.pod
+<
+You can also translate it to various formats using the various pod2* programs.
+
+If you are too lazy to read documentation, you might still want to read the
+|browser-introduction| and the |browser-glossary|.
+
+ 1. Introduction            |browser-introduction|
+ 2. Opening a new web page  |browser-opening|
+ 3. Uri format              |browser-uri|
+ 4. Bookmarks               |browser-bookmarks|
+ 5. History                 |browser-history|
+ 6. Forms                   |browser-forms|
+ 7. The Sidebar             |browser-sidebar|
+ 8. Menus                   |browser-menus|
+ 9. Miscellaneous commands  |browser-miscellaneous|
+10. Mappings                |browser-mappings|
+11. Extra Features          |browser-extra|
+12. Syntax Highlighting     |browser-syntax|
+13. Settings                |browser-settings|
+14. Environment Variables   |browser-environment|
+15. GLOSSARY                |browser-glossary|
+
+
+See |add-local-help| for the installation of this file
+
+{Vi does not have any of these features}
+
+=============================================================================
+1. Introduction                                 *browser-introduction*
+
+All functionality is available via commands, and some of them have default key
+mappings and menu entries. I tried to make the mappings as compatible as
+possible with tags.
+
+Similarly, I tried to maintain an analogy between browser windows (which can
+be thought of as browser instances, or windows, or tabs) and vim windows, and
+between web pages and vim buffers.
+
+Unless stated otherwise, all commands are global, ie, they work in any window,
+not only a browser window. Usually, the affected browser window will be the
+last one that was active (in any case, if the currently active window is a
+browser window, it will be affected).
+
+Most commands have two versions: a canonical version with a "Browser" prefix,
+which is always available, and a short version, which is available only if
+"plugin/browser_short.vim" is used. See |browser-extra| for details. Some of
+the commands also have key mappings associated with them. These mapping are
+only available if "ftplugin/browser/mappings.vim" is used. See
+|browser-mappings| for details. Some of the less basic features are made
+available via a different file, "plugin/browser_extra.vim", whose installation
+is optional.
+
+                                                *browser-startup*
+STARTUP ~
+
+To improve vim startup speed, loading most of the plugin is deferred until it
+is first used. Before the plugin is first used, only a subset of the commands
+is available. These commands will be marked with {startup} in their
+description. Generally, a command will exist only if it makes sense to use it
+before the plugin was ever loaded.
+
+If you would like to initialize the plugin before it is used for the first
+time, you may use:
+
+                                                        *:BrowserInit*
+:BrowserInit     Initialize the browser plugin. This loads all available
+                 commands, as well as all the required perl modules. It is not
+                 required to use this command, it will run automatically the
+                 first time a browser command is used.
+
+                 I guess I should add it, then: {startup}
+
+
+=============================================================================
+2. Opening a new web page                       *browser-opening*
+
+:Browse[!] [uri] [args]                 *:Browse*
+                 Open the page with the given [uri]. If there is an open
+                 browser window, open it there, otherwise open a new browser
+                 window (similarly to the |:help| command). The [uri]
+                 specification may contain also bookmarks, see |browser-uri|
+                 for details. The page will be displayed according to its
+                 content type, see |browser-content-type|. Alternatively, if a
+                 handler for the given scheme is defined, use it instead of
+                 opening, see |browser-schemes|.
+
+                 If the page was already opened, it will not be loaded again,
+                 use |:Reload| if you want to reload it.
+
+                 If [args] are given, they are appended to the [uri] as
+                 follows: The first argument is appended as is. Each of the
+                 others is appended with a "&" in front if it contains a "=",
+                 and with a "+" otherwise. This looks strange, but it allows
+                 you to do stuff like
+>
+        :Browse www.google.com/search?q= foo bar sitesearch=www.sf.net
+<
+                 and get the right thing. This concatenation happens after the
+                 expansion of [uri], so if you have, in the current address
+                 book, a bookmark "googlesearch" with the above address, this
+                 is equivalent to
+>
+        :Browse ::googlesearch foo bar sitesearch=www.sf.net
+<
+                 (but see also |:Google| for this particular example).
+
+                 If no [uri] is given, the default page will be opened. This
+                 is the page given by the |g:browser_home_page| variable, or,
+                 if not defined, by the "$HOMEPAGE" environment variable, by
+                 "$HOME", or if non of them is defined defaults to
+                 "http://vim.sf.net/".
+
+                 Tip: If you want to use the last accessed page as the
+                 homepage, set |g:browser_home_page| to "history://1". See
+                 |:History| for details.
+
+                 If the bang ("!") is added, the page will be opened in the
+                 sidebar. See |browser-sidebar| for details. {startup}
+
+:BrowserSplit[!] [uri] [args]           *:BrowserSplit*
+:SBrowse[!] [uri] [args]                *:SBrowse*
+                 Same as |:Browse|, but force splitting a new window, even if
+                 an existing browser window exists. If "!" is given, split
+                 vertically.
+
+<Plug>BrowserReload                     *<Plug>BrowserReload*
+<C-R>                                   *browser-<C-R>*
+:BrowserReload[!]                       *:BrowserReload* *:Reload*
+:Reload[!]       Reload the current page. If fetching the page failed, leaves
+                 the old content.  If the page is the result of posting form
+                 data (see |browser-forms|), the browser will prompt the user
+                 whether to re-submit it. Pressing any key other than "n" will
+                 resubmit the post. To avoid the question (giving a positive
+                 answer), add "!".
+
+<Plug>BrowserFollow                     *<Plug>BrowserFollow*
+CTRL-]                                  *browser-CTRL-]*
+g<LeftMouse>                            *browser-g<LeftMouse>*
+<C-LeftMouse>                           *browser-<C-LeftMouse>*
+:BrowserFollow                          *:BrowserFollow* *:Follow*
+:Follow          Follow the link currently under the cursor. Obeys the same
+                 rules as |:Browse|. (In particular, the
+                 |browser-content-type| rules apply.)
+
+                 Naturally, this command will only work when the currently
+                 active window is a browser window.
+
+                 For form inputs, this sets the value of the input under the
+                 cursor. See |browser-forms| for details.
+
+                 Visited links will appear in a different color (using the
+                 "LineNr" highlighting group by default).
+
+                 This command also has an entry in the pop-up menu, when
+                 right-clicking a link. See |browser-menus| for details.
+
+:BrowserSaveLink [file]                 *:BrowserSaveLink*
+:SaveLink [file]                        *:SaveLink*
+                 Instead of opening the link under the cursor, save it to a
+                 file, given by [file]. If [file] is not given, the user is
+                 prompted to give one. This will also happen if you |:Follow|
+                 a link whose content type is not supported.  The prompt may
+                 be either graphical or command-line, depending on the "c"
+                 flag in 'guioptions'.
+
+                 This command also has an entry in the pop-up menu, when
+                 right-clicking a link. See |browser-menus| for details.
+
+                 Note that this will not work if an external handler is
+                 defined for the scheme of the link (see |browser-schemes|).
+
+
+                                                *browser-content-type*
+CONTENT-TYPE HANDLING ~
+
+When opening a location, the data returned has a certain type, known as
+content-type. This might be, for example, "text/html" or "application/pdf".
+Some of these types are dealt with internally: html pages have content type
+"text/html" and are formatted and displayed in a vim window. See
+|browser-syntax| for details about the way the resulted page is highlighted.
+Content of type "text/plain" is displayed as is. Various content types like
+"text/x-perl" are displayed as they are, but with the correct syntax
+highlighting.
+
+If the content type is not supported internally, the browser will propose
+several ways to handle the data: either save the content to a file, or open it
+with system defined external viewers. The possible external viewers are
+defined in the mailcap files. It is also possible to enter an external program
+manually.
+
+Mailcap files                                   *browser-mailcap-files*
+
+Mailcap files are the unix way of associating viewers to content types.
+However, mailcap files are supported by the browser on any platform. A mailcap
+file is a text file containing lines similar to:
+>
+        application/pdf; xpdf %s[; <other fields>]
+<
+The line above means that a file "foo.pdf" of type "application/pdf" is viewed
+by running "xpdf foo.pdf". The full format of the mailcap file is described in
+the mailcap(5) man page. Mailcap files are handled by the browser using the
+(supplied) "Mailcap" module.
+
+The mailcap files that will be used are first the file given by the
+|g:browser_mailcap_file|, then the files given by the "$MAILCAPS" environment
+variable. If this variable is not defined, several standard (on unix)
+locations are used (including ".mailcap" in the user's home directory).
+
+Note: the distribution contains a file called "mailcap", placed in the browser
+directory. This file is used for a different purpose: it specifies which
+programs to use for decompressing compressed contents (as indicated by the
+content encoding). There is generally no reason to modify this file (unless
+different decompression programs are required), it does not affect content
+type processing.
+
+If a line in a mailcap file contains the word "copiousoutput", the viewer will
+be used as a filter, whose output is displayed in a browser window. This kind
+of program is displayed with a vertical bar ("|", a pipe) in the end.
+
+                                                *browser-images*
+IMAGES ~
+
+The vim browser can not display inline images, but it supports saving them to
+a file, or viewing them externally:
+
+:BrowserImageSave [file]                *:BrowserImageSave*
+:ImageSave [file]                       *:ImageSave*
+                 Save the image under the cursor to the given [file]. If
+                 [file] is not given, the user is prompted for a file name
+                 (use the "c" flag of 'guioptions' to switch between graphical
+                 and command-line dialogs).
+
+:BrowserImageView                       *:BrowserImageView* *:ImageView*
+:ImageView       View the inline using the default external viewer, as defined
+                 in the mailcap files (see |browser-mailcap-files|).
+
+:BrowserImage                           *:BrowserImage* *:Image*
+:Image           Displays a menu, with several possibilities for dealing with
+                 the image, similar to the menu used for un-handled content
+                 types.
+
+
+An image appears as text between "{" and "}". The text is either what the web
+page supplies (as the alt attribute) or the word "IMAGE". All commands operate
+on the image under the cursor. If the pop-up menu is used, it will have
+entries to view or save the image (if the cursor is on an image).
+
+=============================================================================
+3. Uri format                                   *browser-uri*
+
+Whenever a uri is required, the uri may have one of several forms. Any
+complete uri is acceptable. However, the plugin uses "URI::Heuristic" to
+expand anything that does not start with a ":", so most things another browser
+would accept, are also acceptable here. If the uri contains a scheme (like
+"http:"), it is not modified. See the documentation of "URI::Heuristic" for
+details. Uris starting with ":" are reserved for bookmarks.
+
+Note that when specifying a local file relative to the current directory, it
+should start with "./", otherwise it will be treated as http.
+
+                                                *browser-schemes*
+SCHEMES ~
+
+The general structure of a standard uri is
+>
+        <scheme>://<authority><path>?<query>#<fragment>
+<
+For example, in
+>
+        http://vim.sf.net/scripts/script.php?script_id=1053
+<
+The scheme is "http", the authority is "vim.sf.net", the path is
+"/scripts/script.php" and the query is "script_id=1053". The scheme part
+determines the protocol used.
+
+In principle, the plugin can fetch the contents of a uri with any standard
+scheme except for "mailto" (where it makes no sense). However, sometimes
+that's not desirable. For example, for an "ftp" uri of a remote directory,
+what you really want is to enter the directory, get some files, etc.
+
+                                                        *browser-handlers*
+For this reason, it is possible to define external handlers associated with a
+given scheme. There are, in fact, two kinds of external handlers. The first
+kind associates with a given scheme an external program to launch when a uri
+with such a scheme is requested. The program should be given in the
+|g:browser_{scheme}_handler| variable, with {scheme} replaced by the actual
+scheme.
+
+The second kind associates a vim command with a given scheme. To set it up,
+use the |g:browser_{scheme}_command| variable, to the required vim command.
+
+Both variables may contain escape sequences replaced with parts of the uri, as
+follows:
+
+ *  %s - replaced by the full uri
+
+ *  %o - replaced by everything between the scheme and the fragment
+
+ *  %p - replaced by the path
+
+ *  %f - replaced by the fragment
+
+ *  %a - replaced by the authority
+
+ *  %q - replaced by the query
+
+ *  %% - replaced by a literal %
+
+
+Once a handler is defined, it is used whenever a uri of this type is requested
+(eg, in |:Browse| commands, when following a link, etc.).  This is done after
+the uri expansion, so bookmarks whose target is such a uri are affected as
+well.
+
+For example, the definition
+>
+        let g:browser_mailto_handler = 'xterm -e mutt %s'
+<
+in the plugin will cause mutt(1) to be opened in a an xterm(1) whenever a
+"mailto:" uri is encountered.
+
+Handlers can be defined for arbitrary schemes. If an handler is defined for a
+standard scheme (like "ftp"), the internal handling will not take place. Non
+standard schemes can be used as well. For example, setting
+>
+        let g:browser_help_command = 'help %a'
+<
+will run "help foo" when accessing a "help://foo" uri. Similar definitions can
+be used, eg, for "man://" uris, "info://" (GNU info), and so on, assuming you
+have the corresponding plugins to view such pages.
+
+Tip: In case you are wondering why would you want to use
+>
+        :Browse man://ls
+<
+instead of just
+>
+        :Man ls
+<
+note that these uris also work in links. So you may create, for instance, an
+html listing of all man pages on your machine, and then just follow them to
+open in it in the man plugin.
+
+Finally, two schemes have special meaning for the plugin: A uri of the form
+"history://n" will send you to the n-th newest page in the global history, or
+to the history page itself, if n is omitted. A uri of the form
+"bookmark://foo" will get you the page for the bookmarks file "foo", or the
+default one, if "foo" is omitted. See |:History| and |:BookmarksPage|,
+respectively.
+
+=============================================================================
+4. Bookmarks                                    *browser-bookmarks*
+
+The bookmark system works as follows: Bookmarks are stored in files, which may
+reside in the directory given by |g:browser_addrbook_dir|, and in directories
+of the form "dir/browser/addressbooks", where "dir" is a directory in
+'runtimepath'. Each file in these directories is considered a bookmarks file
+(if several of these directories contain files with the same name, the first
+one is taken. The first directory is always then one given by
+|g:browser_addrbook_dir|. Each such file contains a list of aliases to uris.
+You can then use the syntax ":<file>:<alias>" for a uri. For example, if you
+have a bookmark file called "software" which contains an alias "vim" to
+"http://vim.sf.net", then
+>
+        :Browse :software:vim
+<
+is equivalent to
+>
+        :Browse http://vim.sf.net
+<
+Additionally, there is always a "current" bookmark file, initially given by
+|g:browser_default_addrbook|, whose name can be omitted. So in the above
+example, if "software" is the current file, you can write
+>
+        :Browse ::vim
+<
+In fact, you can also drop one of the ":", but the command line completion
+will complete bookmark files and not aliases.
+
+An argument of the form ":{file}:", where {file} is the name of a bookmarks
+file (for example, ":software:") is expanded to a browser page containing the
+bookmarks as links. "::" is expanded to the page for the current bookmark
+file.
+
+The structure of the bookmark file is very simple:
+>
+        <alias> <uri> <text>
+<
+Where "alias" is the alias, "uri" is the uri to which it expands (both may not
+contain whitespace), and the rest of the line is a comment (usually the title
+of the web page). The line should start in the first column. Lines that have
+"#" in the first column are ignored and can be used as comments, but note
+that, at least currently, if you change or delete a bookmark from within vim,
+this file is overwritten, and all comments except for those appearing at the
+top of the file are lost.
+
+If this file is modified outside of vim after it was used in a session, the
+changes won't be take place until you restart vim.
+
+The "uri" field in the bookmark file may contain anything that is valid as a
+uri, including other bookmarks, which are expanded recursively.
+
+The bookmarks system can be disabled by setting |g:browser_addrbook_dir| to an
+empty string.
+
+:BrowserBookmark [:{file}:]{alias}              *:BrowserBookmark*
+:Bookmark [:{file}:]{alias}                     *:Bookmark*
+                 Add a bookmark of the current page to the current or given
+                 (by {file}) bookmark file, under the alias {alias}. If there
+                 is already an alias by that name, it will be replaced.
+
+:BrowserBookmark! [:{file}:]{alias}             *:BrowserBookmark!*
+:Bookmark! [:{file}:]{alias}                    *:Bookmark!*
+                 Delete the given alias from the current or given bookmark
+                 file.
+
+:BrowserAddrBook[!] {name}                      *:BrowserAddrBook*
+:AddrBook[!] {name}                             *:AddrBook*
+                 Change the current bookmark file to be the one given by
+                 {name}. {name} is the name of a file in the directory
+                 specified by |g:browser_addrbook_dir|, as explained above. If
+                 the file does not exist, the command fails, unless "!" is
+                 given, in which case it is created. {startup}
+
+:BrowserListBookmarks [name]                    *:BrowserListBookmarks*
+:ListBookmarks [name]                           *:ListBookmarks*
+                 List all bookmarks in the bookmark file specified by [name].
+                 If [name] is omitted, the current file is used. {startup}
+
+:BrowserBookmarksPage[!] [file]                 *:BrowserBookmarksPage*
+:BookmarksPage[!] [file]                        *:BookmarksPage*
+                 Open the bookmarks in file [file] (or the current one if
+                 [file] is omitted) as a browser page. This is equivalent to
+>
+        :Browse :file:
+<
+                 If "!" is given, open the page in the sidebar (see
+                 |browser-sidebar|). {startup}
+
+
+The bookmarks page can also be accessed via the "bookmarks://file" uri. Thus
+there three ways to open the page for bookmarks file "foo":
+>
+        :Browse :foo:
+        :Browse bookmarks://foo
+        :BookmarksPage foo
+<
+In all three of them, "foo" can be omitted if it is the current one.
+
+=============================================================================
+5. History                                      *browser-history*
+
+There are two types of history: local and global. The local history contains
+the stack of locations visited so far in the current window. It is supposed to
+resemble the |tags| mechanism.
+
+[N]<Plug>BrowserBack                            *<Plug>BrowserBack*
+[N]CTRL-T                                       *browser-CTRL-T*
+[N]g<RightMouse>                                *browser-g<RightMouse>*
+[N]<C-RightMouse>                               *browser-<C-RightMouse>*
+:[N]BrowserBack                                 *:BrowserBack*
+:[N]Back                                        *:Back*
+:[N]BrowserPop                                  *:BrowserPop* *:Pop*
+:[N]Pop                  Go back N items in the history of the current window.
+                         N defaults to 1. Also has an entry in the pop-up
+                         menu.
+
+:[N]BrowserForward                              *:BrowserForward*
+:[N]Forward                                     *:Forward*
+:[N]BrowserTag                                  *:BrowserTag* *:Tag*
+:[N]Tag                  Go forward N items in the history of the current
+                         window. N defaults to 1. Also has an entry in the
+                         pop-up menu.
+
+:BrowserTags                                    *:BrowserTags* *:Tags*
+:Tags                    Show the history of the current window.
+
+
+The global history contains the locations visited lately by some browser
+instance. It is common to all windows and all vim instances, and is kept
+across sessions, in the file given by |g:browser_history_file|.
+
+:BrowserHistory[!] [num]                        *:BrowserHistory*
+:History[!] [num]                               *:History*
+                 When [num] is not given, open the history page in the current
+                 browser window (or open a new one if no such window exists).
+                 The same can be achieved by opening the "history://" uri.
+                 With "!", open the page in the sidebar (see |browser-sidebar|
+                 for details).
+
+                 When [num] is given, go to the [num]-th newest page in the
+                 history. For example,
+>
+        :History 1
+<
+                 goes to the most recently viewed page. {startup}
+
+
+The history page contains the previously visited locations as links. They are
+grouped according to their site, and the groups are sorted according to access
+time. Below each link appears the last access time for this link. The number
+of items in the history is given by |g:browser_history_size|.
+
+=============================================================================
+6. Forms                                        *browser-forms*
+
+Forms are html page areas where the user may supply data to the web server.
+This includes, eg, various search services, such as google or
+"http://vim.sf.net/search.php".
+
+A form usually consists of several "inputs". An input is one individual data
+item in a form. The plugin currently supports all input types. Unless
+|g:browser_page_modifiable| is set to 1 (it is 0 by default), the 'modifiable'
+option is off for browser pages, so to change the value of a an input, you
+need to use the |:Follow| command, or the following:
+
+<Plug>BrowserClick                              *<Plug>BrowserClick*
+<CR>                                            *browser-<CR>*
+:Click                                          *:Click* *:BrowserClick*
+:BrowserClick            The same as |:Follow|, but works only for form
+                         inputs. See below for the specific details for each
+                         input type.
+
+
+These commands have different effect for each input type, as follows:
+
+text inputs                                     *browser-text-inputs*
+
+                                        *browser-i_<Tab>* *browser-i_<S-Tab>*
+ These are one line areas where the user is expected to enter some text, eg,
+search terms. The input will start with "]>", with nothing till the end of the
+line. Clicking such an input will just cause vim to enter insert mode.  Note
+that the whole input must remain on one line.  Pressing <Tab> or <S-Tab> will
+exit insert mode and put the cursor on the next or previous link or input,
+just like |:NextLink|.
+
+If you use <Esc> to exit insert mode, the page will retain the 'modifiable'
+state it had before clicking the input, but any other method of going out of
+insert mode will not have this effect.
+
+Pressing <CR> while typing in a text input will exit insert mode and submit
+the relevant form.
+
+submit inputs                                   *browser-submit-inputs*
+
+The submit button looks like a normal link, usually with the word "Submit" as
+its content. Clicking it will submit the data filled in the other inputs of
+this form.
+
+:BrowserSubmit                                  *:BrowserSubmit* *:Submit*
+:Submit          When the cursor is on any form input, these commands will
+                 submit the form to which the input belongs. Otherwise, the
+                 command has no effect.
+
+
+radio inputs                                    *browser-radio-inputs*
+
+Radio buttons are used to choose one of several options displayed on the page.
+A radio button looks like "(*)" if selected, "( )" otherwise.  Clicking the
+button will select it instead of the currently selected one.  There is a extra
+way to modify the values of "radio" and "option" inputs:
+
+[N]<Plug>BrowserNextChoice              *<Plug>BrowserNextChoice*
+[N]<C-N>                                *browser-<C-N>*
+:[N]BrowserNextChoice                   *:BrowserNextChoice* *:NextChoice*
+:[N]NextChoice   Change the value of the input under the cursor, which must be
+                 either a radio button or an option, to the N-th next one. N
+                 defaults to 1. For radio buttons, but not for options, the
+                 operation is cyclic: pressing <C-N> when the selected button
+                 is the last one will select the first one. Note that for
+                 radio buttons, the cursor need not be on the selected button,
+                 but only on one of the buttons from the same group.
+
+[N]<Plug>BrowserPrevChoice              *<Plug>BrowserPrevChoice*
+[N]<C-P>                                *browser-<C-P>*
+:[N]BrowserPrevChoice                   *:BrowserPrevChoice* *:PrevChoice*
+:[N]PrevChoice   Same as |:NextChoice| above, but rotate backwards.
+
+
+option inputs                                   *browser-option-inputs*
+
+There are, in fact, two kinds of option inputs, single valued and multi
+valued.
+
+Similarly to radio buttons (see |browser-radio-inputs|), a single valued
+option input also allows to choose one value out of several, but only the
+currently selected option is displayed. This is usually implemented as a
+dropdown menu.  The selected option will appear between square brackets.  When
+clicked, the user will be presented with a menu of all possible choices. In
+addition, it is possible to cycle through the values (see |:NextChoice|), as
+with radio buttons.
+
+Hint: The "v" and "c" flags of 'guioptions' control the behaviour of the menu
+when the gui is running.
+
+A multi valued option input allows to have a subset of the values chosen,
+instead of one. It is emulated using checkbox buttons (see
+|browser-checkbox-inputs|), one for each option.
+
+checkbox inputs                                 *browser-checkbox-inputs*
+
+A checkbox button allows to choose between boolean values. It appears as "[X]"
+when selected, "[ ]" otherwise. Clicking it toggles the value.
+
+password inputs                                 *browser-password-inputs*
+
+Password inputs are used for entering secret data, like, well, passwords.
+They will appear as "[######]" when a value is set, and as "[______]"
+otherwise. Clicking it will prompt the user for the value, using
+|inputsecret()|. Unlike the other inputs, this one can not be edited directly,
+and clicking it is the only way to set its value.
+
+file inputs                                     *browser-file-inputs*
+
+A file input is used for attaching a file. Clicking it will cause a browse
+dialog to open, if possible, and the file to attach should be selected. If the
+vim version does not have the |+browse| feature, a regular input prompt will
+be used (either graphical or command line, depending on the "c" flag of
+'guioptions').
+
+textareas                                       *browser-textareas*
+
+A textarea is an area where a user can enter any amount of plain text. A
+textarea appears folded, with two lines composed mainly of "-" characters
+showing its start and end lines. Clicking the top line will open a preview
+window containing the current text in the textarea. The text can be modified
+in this window. Upon leaving the preview window (either by closing it, or by
+moving to another window), the text in the browser page will be updated.
+
+In case there are more text lines than the numbers of lines allocated to it on
+the browser page, the following commands can be used to scroll the text:
+
+[N]<Plug>BrowserTextScrollUp    *<Plug>BrowserTextScrollUp*
+[N]<S-Down>                     *browser-<C-Down>*
+:[N]BrowserTextScrollUp         *:BrowserTextScrollUp* *:ScrollUp*
+:[N]ScrollUp     Scroll the text in the text area up N lines. N defaults to 1.
+                 The command only works while the cursor is on the text area.
+                 Note that scrolling the text up moves the cursor down, so the
+                 mapping makes sense.
+
+[N]<Plug>BrowserTextScrollDown  *<Plug>BrowserTextScrollDown*
+[N]<S-Up>                       *browser-<C-Up>*
+:[N]BrowserTextScrollDown       *:BrowserTextScrollDown* *:ScrollDown*
+:[N]ScrollDown   Same as |:ScrollUp|, but in the other direction.
+
+
+=============================================================================
+7. The Sidebar                                  *browser-sidebar*
+
+The browser supports the concept of a sidebar: the sidebar is a vertically
+split area on the left side of the vim window, containing one or more usual
+browser pages. There are several differences, though, between a sidebar page
+and a regular page:
+
+ *  When clicking an absolute link in the sidebar, the resulting page will be
+    displayed in a usual browser window, and not instead of the one in the
+    sidebar. Thus, the sidebar page will remain open. This will not happen for
+    relative links, though.
+
+ *  A sidebar window can never be the current browser window. A new page will
+    always be opened in a regular window, unless explicitly requested
+    otherwise.
+
+ *  There is at most one sidebar window for each browser command. Thus,
+    opening a bookmarks page using the |:BookmarksPage| command will replace
+    the currently open bookmarks page in the sidebar, if there is one. Note
+    that for this purpose, different commands with the same functionality are
+    considered different (ie, "BookmarksPage" and "BrowserBookmarksPage" are
+    not considered the same command).
+
+ *  The 'wrap' option is always unset in the sidebar
+
+
+The idea is mainly to be able to keep certain kinds of pages open while
+investigating their links. Popular candidates are the history page, bookmarks
+pages, search results, etc. Several commands for opening a page interpret a
+bang ("!") as a request to open the page in the sidebar. The distinction
+between relative and absolute links, will cause, eg, the next search result in
+google to be displayed in the sidebar again.
+
+:BrowserSideBar {command} [args]                *:BrowserSideBar*
+:SideBar {command} [args]                       *:SideBar*
+                 Run the given browser {command} (with the given [args]), and
+                 if opening a page is involved, open it in the sidebar. The
+                 {command} becomes the identifier of the sidebar window: the
+                 next time ":SideBar" is called with the same {command}, the
+                 page will be opened in the same window. If no window with
+                 this identifier exists in the sidebar, a new (horizontally
+                 split) window is created in the sidebar. {startup}
+
+:BrowserCloseSideBar                            *:BrowserCloseSideBar*
+:CloseSideBar                                   *:CloseSideBar*
+                 Close all the windows in the sidebar.
+
+
+The width of the sidebar is determined by the |g:browser_sidebar_width|
+variable. If the sidebar does not exist, and a sidebar window is requested,
+the browser will try to increase the vim window (by setting the 'columns'
+option) by that size. Similarly, when the last sidebar window is closed, the
+window width will be reduced by that size.
+
+=============================================================================
+8. Menus                                        *browser-menus*
+
+The browser plugin utilizes two kinds of menus: the toolbar and the context
+(pop-up) menu. The global effects on the menus are implemented in the
+"browser_menus.vim" file, and can be disabled by setting the
+"g:browser_menus_version" (before it is loaded).
+
+The plugin alters the meaning of three toolbar buttons: The "FindPrev" and
+"FindNext" buttons are used for the |:Back| and |:Forward| commands,
+respectively, and the "Redo" button is used for the |:Reload| command.
+
+The pop-up menu acquires one global entry, "Search The Web", which will run
+the |:Search| command on the word under the cursor or the visually selected
+words, if used in visual mode.
+
+In addition, the pop-up menu will have other entries when the current window
+is a browser window. This is context sensitive: the commands which require an
+argument will take it from the cursor location, and a command will appear only
+if there is a valid such argument. The possible entries are:
+
+ *  "Follow Link", "Save Link" - follow or save the link under the cursor, if
+    any.
+
+ *  "View Image", "Save Image" - view or save the inline image under the
+    cursor, if any.
+
+ *  "Back", "Forward" - go back or forward in the window history. Will appear
+    only if possible.
+
+
+These additions to the pop-up menu will only be available if mappings are
+used.
+
+=============================================================================
+9. Miscellaneous commands                       *browser-miscellaneous*
+
+:BrowserShowHeader                      *:BrowserShowHeader* *:ShowHeader*
+:ShowHeader      Show some of the header fields in the current page. The
+                 header fields are added to the bottom of the page.
+
+:BrowserHideHeader                      *:BrowserHideHeader* *:HideHeader*
+:HideHeader      Hide fields that were displayed by |:ShowHeader|.
+
+:BrowserViewSource[!]                   *:BrowserViewSource*
+:ViewSource[!]                          *:ViewSource* *:Update*
+:Update          Open a new window, with the source of the current page
+                 displayed. If "!" is given, split vertically. The source can
+                 be modified. While in the source page, the ":Update" command
+                 can be used for the changes to take effect in the formatted
+                 result. This allows, eg, interactive editing of html files:
+                 start with something like ":Browse $HOME/foo.html", run
+                 ":ViewSource", then edit the resulting buffer, running
+                 ":Update" occasionally, and finally write the source back to
+                 "$HOME/foo.html".
+
+[N]<Plug>BrowserNextLink                *<Plug>BrowserNextLink*
+[N]<Tab>                                *browser-<Tab>*
+:[N]BrowserNextLink                     *:BrowserNextLink* *:NextLink*
+:[N]NextLink     Jump to the N-th next link, from the current cursor position.
+                 N defaults to 1. Works only in a browser window.
+
+[N]<Plug>BrowserPrevLink                *<Plug>BrowserPrevLink*
+[N]<S-Tab>                              *browser-<S-Tab>*
+:[N]BrowserPrevLink                     *:BrowserPrevLink* *:PrevLink*
+:[N]PrevLink     Same as |:NextLink|, but backwards.
+
+
+=============================================================================
+10. Mappings                                    *browser-mappings*
+
+The plugin defines "virtual" mappings, using the |<Plug>| mechanism, for some
+of the commands. These are always available. In addition, it defines some
+default real keys to be mapped to these virtual ones. Unless mentioned
+otherwise, these are only available if the "ftplugin/browser/mappings.vim"
+file from the "extra" directory is installed. All mappings are local to
+browser windows, unless otherwise mentioned.
+
+The mappings using a mechanism that provides a listing of the currently
+available mappings, with a short description. This mechanism can be used by
+the user to customize the mappings:
+
+<Plug>BrowserHelp                               *<Plug>BrowserHelp*
+H                                               *browser-H* *:BrowserHelp*
+:BrowserHelp     Show the list of currently available key mappings. This works
+                 only in a browser window.
+
+:BrowserMap {lhs} {virtual|rhs [help]}          *:BrowserMap*
+                 This command can be used instead of the usual |:map| command,
+                 to map the key sequence {lhs}. The other argument can be one
+                 of two things: If it is a word starting with an uppercase
+                 letter, say "Foo", it will be mapped to the virtual key
+                 <Plug>BrowserFoo. All possible words are listed in
+                 |browser-mappings-list|, below. For example:
+>
+        BrowserMap <Tab> NextLink
+<
+                 Otherwise, the next argument is used as a usual {rhs} in a
+                 |:map| command. The rest of the arguments are then used as
+                 the help line. For example:
+>
+        BrowserMap q :q<CR> quit the browser window
+<
+                 Note that the {rhs} can not contain whitespace in this case.
+                 Only normal mode mappings can be defined in this way. See the
+                 defaults in "ftplugin/browser/mappings.vim" for the more
+                 examples.
+
+
+mappings list                                   *browser-mappings-list*
+
+The following is a list of available key mappings. The first word is the
+virtual map, as can be used with |:BrowserMap| The others are the default
+mappings.
+
+ *  Follow, <C-]>, g<LeftMouse>, <C-LeftMouse>: follow link or click form
+    input under the cursor (|:BrowserFollow|)
+
+ *  Back, <C-T>, g<RightMouse>, <C-RightMouse>: go back in window history
+    (|:BrowserBack|)
+
+ *  Reload, <C-R>: Reload the current page (|:Reload|)
+
+ *  NextLink/PrevLink, <Tab>/<S-Tab>: next/previous link, also in insert mode
+    (|:BrowserNextLink|)
+
+ *  NextChoice/PrevChoice, <C-N>/<C-P>: Rotate input value, for radio buttons
+    and options (|:BrowserNextChoice|)
+
+ *  Click, <CR>: Click form input, change value or submit (|:BrowserClick|).
+    In insert mode (when editing a text input), <CR> will submit the form
+    containing the currently edited text input.
+
+ *  <C-S>: Search the web for the current or selected words, using the current
+    default search engine.  Only available if "plugin/browser_extra.vim" is
+    installed. This is a global mapping.  (|:Search|).
+
+ *  <C-K>: Look up the word under the cursor in the current default keyword
+    look up facility. Only available if "plugin/browser_extra.vim" is
+    installed. This is a global mapping. (|:Keyword|).
+
+                                                        *browser-<Space>*
+ *  <Space>: Scroll one page forward
+
+                                                                *browser-b*
+ *  b: Scroll one page backward
+
+                                                                *browser-q*
+ *  q: Close the browser window
+
+ *  TextScrollUp/TextScrollDown, <S-Up>/<S-Down>: scroll the text in a
+    textarea input up and down (|browser-textareas|).
+
+                                                *browser-\g* *browser-<C-g>*
+ *   In command line mode, <C-G> will insert the full uri of the current page.
+    <LocalLeader>g in normal mode maps to ":Browse {uri}" where {uri} is the
+    uri of the current page.
+
+ *  Help, H: Show the list of current mappings, with a description
+    (|:BrowserHelp|).
+
+                                                *browser-j* *browser-k*
+ *   When the 'wrap' option is off, j and k in normal mode are mapped to |gj|
+    and |gk|, respectively.
+
+
+=============================================================================
+11. Extra Features                              *browser-extra*
+
+Some features are available only if the files in the "extra" directory of the
+distribution are installed. This is so to avoid possible incompatibility with
+other plugins and with user settings. The rest of the plugin does not depend
+on them, and they can be freely modified (though it is still preferable to do
+the modifications elsewhere, to prevent overwriting by a later version). They
+provide the following features:
+
+"ftplugin/browser/mappings.vim"                 *browser-mappings.vim*
+
+Key mappings available in the browser window. See |browser-mappings| for
+details.
+
+"plugin/browser_short.vim"                      *browser-browser_short.vim*
+
+Short version of commands. Contains the definitions of all commands that do
+not start with the "Browser" prefix, except for|:Browse|, which is part of the
+main package. The loading of this plugin can be avoided even if it is
+installed, by setting the "g:browser_short_version" variable.
+
+"plugin/browser_menus.vim"                      *browser-browser_menus.vim*
+
+The file containing the toolbar and global pop-up menu definitions. See
+|browser-menus|. Can be disabled by setting the "g:browser_menus_version"
+variable.
+
+"plugin/browser_extra.vim"                      *browser-browser_extra.vim*
+
+Provides some extra convenience commands. Currently contains the commands and
+mappings for searching the web (see |browser-searching|), as well as the
+following commands:
+
+                                                        *browser-vim-site*
+
+:VimSearch[!] {type} {words}                                    *:VimSearch*
+                 Search the vim site for an item of the given {type},
+                 containing the given {words}. {type} may be any of the
+                 possible script types on the vim site ("colorscheme",
+                 "indent", etc.), "tip" for finding a tip, and "script" to
+                 find any script.
+
+                 The bang will open the search results in the sidebar (see
+                 |browser-sidebar|). {startup}
+
+:VimScript {id}                                                 *:VimScript*
+                 Open the page of the vim script with the given {id}.
+                 {startup}
+
+                                                                *:VimTip*
+:VimTip {id}     Open the tip with the given {id}. {startup}
+
+
+                                                *browser-searching*
+SEARCHING THE WEB ~
+
+The special bookmarks file "_search" contains addresses of both general
+purpose and specific search engines. Several commands make use of this file:
+
+:SearchUsing[!] {facility} [words]              *:SearchUsing*
+                 Search the web for [words], using the given {facility}.
+                 {facility} is one of the bookmarks in that file. If no word
+                 is given, use the word under the cursor. For example,
+>
+        :SearchUsing google foo bar
+<
+                 will search these words with google. {startup}
+
+[{visual}]<C-S>                                 *browser-<C-S>*
+:Search[!] [words]                              *:Search*
+                 Search using the facility given by the
+                 |g:browser_search_engine| variable. If no words are given,
+                 use the current word. This variable can be set in a filetype
+                 plugin, to reflect different search sites for different
+                 purposes.
+
+                 For example, you might have
+>
+        let g:browser_search_engine = 'perldoc'
+<
+                 in your "perl.vim" ftplugin,
+>
+        let g:browser_search_engine = 'vimdoc'
+<
+                 in the "vim.vim" plugin, etc.
+
+                 (If you have useful sites to put here, please send them to
+                 me!)
+
+                 <C-S> searches the word under the cursor, or the words
+                 selected in the visual region, if used for {visual}.
+                 {startup}
+
+<C-K>                                           *browser-<C-K>*
+:Keyword[!] [word]                              *:Keyword*
+                 Same as |:Search|, but at only one word is allowed, and uses
+                 |g:browser_keyword_search| instead of
+                 |g:browser_search_engine|. {startup}
+
+:Google[!] [words]                              *:Google*
+:Dictionary[!] [word]                           *:Dictionary*
+:Thesaurus[!] [words]                           *:Thesaurus*
+                 Shortcuts for |:SearchUsing|, with {facility} set to google,
+                 dictionary or thesaurus, respectively. {startup}
+
+
+In all of these commands, the bang ("!") will cause the resulting page to be
+opened in the sidebar (See |browser-sidebar|).
+
+There is also a command for searching the vim site,|:VimSearch|
+
+Loading of this plugin can be avoided by setting "g:browser_extra_version".
+
+=============================================================================
+12. Syntax Highlighting                         *browser-syntax*
+
+As of version 1.0, the browser plugin uses the |synmark| plugin to highlight
+the various parts of the page. The synmark plugin, vimscript #1128 is
+available at
+>
+        http://vim.sf.net/scripts/script.php?script_id=1128
+<
+(or ":VimScript 1128" if are already using the plugin :). From the user's
+point of view there are two interesting commands there, |:SynMarkHighlight|
+and |:SynMarkLink|, analogous to the |:highlight| and |:highlight-link|
+commands, respectively. These can be used to change the highlighting of the
+various markup that occurs in html. The possible groups and their default
+highlighting appear towards the end of the "syntax/browser.vim" file. These
+can be overruled in one of the "after/syntax" directories.
+
+=============================================================================
+13. Settings                                    *browser-settings*
+
+All settings are controlled by global variables whose name start with
+"browser_". Some examples and default values are given in the beginning of the
+"browser.vim" plugin. The recommended place for setting these variables is
+"after/plugin/browser.vim" (in some directory in the 'runtimepath').
+
+g:browser_data_dir                              *g:browser_data_dir*
+                 Default: The "browser" sub directory of the first writable
+                 directory in'runtimepath'.
+
+                 The directory where all the plugin's related data is
+                 maintained.
+
+g:browser_addrbook_dir                          *g:browser_addrbook_dir*
+                 Default: The "addressbooks" sub directory of
+                 |g:browser_data_dir|.
+
+                 The directory where bookmark files are stored. Any file in
+                 this directory is considered to be a bookmarks file. See
+                 |browser-bookmarks| for details.
+
+                 To disable the whole bookmarks system, set this option to the
+                 empty string.
+
+g:browser_default_addrbook                      *g:browser_default_addrbook*
+                 Default: "default"
+
+                 The default "current" bookmarks file. See |browser-bookmarks|
+                 for details.
+
+g:browser_history_file                          *g:browser_history_file*
+                 Default: "history" in |g:browser_data_dir|
+
+                 The file where the global history is saved. See
+                 |browser-history| for details about the global history.
+
+g:browser_history_size                          *g:browser_history_size*
+                 Default: 30
+
+                 The number of entries kept in the global history.
+
+g:browser_mailcap_file                          *g:browser_mailcap_file*
+                 Default: "mailcap.local" in |g:browser_data_dir|
+
+                 The full path to a mailcap file to be used to determine which
+                 external applications to use. See |browser-mailcap-files| for
+                 details. Note that the plugin will look for mailcap files in
+                 all the standard locations, in addition to this one, so it is
+                 only needed for setting entries specifically for the use of
+                 the plugin. It is not an error if the file does not exist.
+
+g:browser_temp_dir                              *g:browser_temp_dir*
+                 Default: "tmp" in |g:browser_data_dir|
+
+                 Directory for temporary files. Currently used only for saving
+                 contents to a file before launching an external viewer for
+                 it.
+
+g:browser_sidebar_width                         *g:browser_sidebar_width*
+                 Default: 25
+
+                 The width of the sidebar (in columns). See |browser-sidebar|.
+
+g:browser_page_modifiable                       *g:browser_page_modifiable*
+                 Default: 0
+
+                 If set to a false value (such as 0), the browser buffers are
+                 not modifiable.  This makes it safer, since accidentally
+                 changing lines will make links unusable. The only drawback is
+                 that a restricted set of operations is available for editing
+                 form inputs (see |browser-forms| for details). But since the
+                 only input type which requires substantial editing, the
+                 textarea, is modified in another buffer, it's not a severe
+                 restriction.
+
+                 Setting it to 1 will revert to the situation in the versions
+                 before 0.4, that the page is modifiable.
+
+g:browser_break_lines                           *g:browser_break_lines*
+                 Default: 1
+
+                 If set to 0, each html paragraph will translate to one vim
+                 line. This will make it more similar to other browsers, in
+                 the sense that the text width will be adjusted when changing
+                 the width of the vim window. The drawbacks are that scrolling
+                 is less smooth, and performance is worse.
+
+g:browser_home_page                             *g:browser_home_page*
+                 Default: "$HOMEPAGE", "$HOME" or "http://vim.sf.net/"
+
+                 The page to use for |:Browse| and similar commands, when no
+                 argument is given.
+
+g:browser_search_engine                         *g:browser_search_engine*
+                 Default: "google"
+
+                 The search facility to use with the |:Search| command.  See
+                 |browser-searching| for details.
+
+g:browser_keyword_search                        *g:browser_keyword_search*
+                 Default: "dictionary"
+
+                 The search facility to use with the |:Keyword| command. See
+                 |browser-searching| for details.
+
+g:browser_from_header                           *g:browser_from_header*
+                 Default: "$EMAIL"
+
+                 The e-mail address to send in the GET request for web pages.
+                 Note: this string is sent to the web server of the requested
+                 uri. For better privacy, make this to empty.
+
+g:browser_cookies_file                          *g:browser_cookies_file*
+                 Default: "cookies.txt" in |g:browser_data_dir|.
+
+                 The name of the file where cookies are stored. Set to empty
+                 to disable cookies.
+
+g:browser_assumed_encoding                      *g:browser_assumed_encoding*
+                 Default: "utf-8"
+
+                 The web page encoding to assume, if it can not be deduced
+                 from the page headers.
+
+g:browser_connect_timeout                       *g:browser_connect_timeout*
+                 Default: 120
+
+                 Time, in seconds, to wait when connecting to a server, until
+                 the browser gives up. Since (for some reason) there is no way
+                 to interrupt the plugin during the connection, it is
+                 advisable to keep it low.
+
+g:browser_verbosity_level                       *g:browser_verbosity_level*
+                 Default: 2
+
+                 The amount of messages the plugin emits. A value of 0 will
+                 make it completely silent.
+
+g:browser_{scheme}_handler                      *g:browser_{scheme}_handler*
+                 Define the external program given by the value of this
+                 variable to handle uris with scheme {scheme}. See
+                 |browser-schemes| for details.
+
+g:browser_{scheme}_command                      *g:browser_{scheme}_command*
+                 Define the vim command given by the value of this variable to
+                 handle uris with scheme {scheme}. See |browser-schemes| for
+                 details.
+
+
+=============================================================================
+14. Environment Variables                       *browser-environment*
+
+The following environment variables may affect the operation of the plugin:
+
+                        *browser-$EMAIL*
+$EMAIL                   Sent by the user agent as the "From" header, in case
+                         |g:browser_from_header| is not defined.
+
+                        *browser-$HOMEPAGE*
+$HOMEPAGE                Default value for |g:browser_home_page|.
+
+                        *browser-$HOME*
+$HOME                    Default value for |g:browser_home_page| if
+                         "$HOMEPAGE" is not defined. Also used by various
+                         helper modules.
+
+$http_proxy             *browser-$http_proxy* *browser-$no_proxy*
+$no_proxy                Used by the "LWP::UserAgent" perl module to determine
+                         what proxy to use for each protocol, and which
+                         domains require no proxy. See the module
+                         documentation for details.
+
+$COUNTRY                *browser-$COUNTRY* *browser-$URL_GUESS_PATTERN*
+$URL_GUESS_PATTERN       Not used directly by the plugin, but used by the
+                         "URI::Heuristic" perl module, to guess incomplete
+                         uris. See the module documentation for details.
+
+                        *browser-$TERM*
+$TERM                    Used by the "Mailcap" perl module. Determines the
+                         terminal program to run when an entry with
+                         "needsterminal" is used. Defaults to "xterm". See the
+                         module documentation for details.
+
+                        *browser-$MAILCAPS*
+$MAILCAPS                Used by the "Mailcap" perl module. Contains the list
+                         of mailcap files to use (in addition,
+                         |g:browser_mailcap_file| will be used).
+
+
+=============================================================================
+15. GLOSSARY                                    *browser-glossary*
+
+Following is a list of all the commands provided by the plugin. See also
+|browser-mappings-list| for a list of all key mappings, |browser-settings| for
+a list of all vim variables affecting the browser behaviour, and ? for
+relevant environment variables.
+
+ *  :BrowserAddrBook, :AddrBook - change default bookmarks file (|:AddrBook|)
+
+ *  :BrowserPop, :Pop, :BrowserBack, :Back - Go back in window history
+    (|:Back|)
+
+ *  :BrowserBookmark, :Bookmark - bookmark the current page (|:Bookmark|)
+
+ *  :BrowserBookmark!, :Bookmark! - remove the given bookmark (|:Bookmark!|)
+
+ *  :BrowserBookmarksPage, :BookmarksPage - open bookmarks as a browser page
+    (|:BookmarksPage|)
+
+ *  :Browse - open a location (|:Browse|)
+
+ *  :BrowserClick, :Click - click a form input (|:Click|)
+
+ *  :BrowserCloseSideBar, :CloseSideBar  - close the sidebar (|:CloseSideBar|)
+
+ *  :Dictionary - look up a word in the dictionary (|:Dictionary|)
+
+ *  :BrowserFollow, :Follow - follow a link (|:Follow|)
+
+ *  :BrowserHelp - show a list of all key mappings (|:BrowserHelp|)
+
+ *  :BrowserInit - initialize the plugin (|:BrowserInit|)
+
+ *  :BrowserTag, :Tag, :BrowserForward, :Forward - go forward in the window
+    history (|:Forward|)
+
+ *  :Google - search for words using google (|:Google|)
+
+ *  :BrowserHideHeader, :HideHeader - hide page headers (|:HideHeader|)
+
+ *  :BrowserHistory, :History - open the global history as a browser page, or
+    go to a recently visited page (|:History|)
+
+ *  :BrowserImage, :Image - deal with an inline image (|:Image|)
+
+ *  :BrowserImageSave, :ImageSave - save an inline image (|:ImageSave|)
+
+ *  :BrowserImageView, :ImageView - view an inline image (|:ImageView|)
+
+ *  :Keyword - look up a keyword (|:Keyword|)
+
+ *  :BrowserListBookmarks, :ListBookmarks - list all bookmarks in a given file
+    (|:ListBookmarks|)
+
+ *  :BrowserMap - define a key mapping for a browser window command
+    (|browser-mappings|)
+
+ *  :BrowserNextChoice, :NextChoice - change to the next choice in a form menu
+    (|:NextChoice|)
+
+ *  :BrowserNextLink, :NextLink - jump to the nearest next link (|:NextLink|)
+
+ *  :BrowserPrevChoice, :PrevChoice - change to the previous choice in a form
+    menu (|:PrevChoice|)
+
+ *  :BrowserPrevLink, :PrevLink - jump to the nearest previous link
+    (|:PrevLink|)
+
+ *  :BrowserReload, :Reload - reload the current page (|:Reload|)
+
+ *  :BrowserSaveLink, :SaveLink - save the content of a link to a file
+    (|:SaveLink|)
+
+ *  :BrowserSplit, :SBrowse - open a location in a new window (|:SBrowse|)
+
+ *  :BrowserTextScrollDown, :ScrollDown - scroll down the text in a textarea
+    (|:ScrollDown|)
+
+ *  :BrowserTextScrollUp, :ScrollUp - scroll up the text in a textarea
+    (|:ScrollUp|)
+
+ *  :Search - search the web (|:Search|)
+
+ *  :SearchUsing - search the web using a specified search engine
+    (|:SearchUsing|)
+
+ *  :BrowserShowHeader, :ShowHeader - show the page headers at the top of the
+    page (|:ShowHeader|)
+
+ *  :BrowserSideBar, :SideBar - run a browser command in the sidebar
+    (|:SideBar|)
+
+ *  :BrowserSubmit, :Submit - submit a form (|:Submit|)
+
+ *  :BrowserTags, :Tags - list the window history (|:Tags|)
+
+ *  :Thesaurus - look up words in the thesaurus (|:Thesaurus|)
+
+ *  :Update - update a page with changes done to the html source (|:Update|)
+
+ *  :BrowserViewSource, :ViewSource - view the source of a page
+    (|:ViewSource|)
+
+ *  :VimScript - open the page of a vim script with the given id
+    (|:VimScript|)
+
+ *  :VimSearch - search the vim pages for a script or a tip (|:VimSearch|)
+
+ *  :VimTip - open the page of a vim tip with the given id (|:VimTip|)
+
+
+
+ vim:tw=78:ts=8:ft=help:norl:

@@ -1,0 +1,11 @@
+# This file is for the browser plugin internal use
+# It will be overwritten!
+# If you would like to add entries special for vimbrowser,
+# please use the file mailcap.local in the same directory as this
+# file
+application/x-bzip2; bzcat; copiousoutput; nametemplate=%s.bz2
+application/gzip; gzcat; copiousoutput; nametemplate=%s.gz
+application/compress; gzcat; copiousoutput; nametemplate=%s.Z
+application/x-pack; gzcat; copiousoutput; nametemplate=%s.z
+application/x-uuencode; uudecode; copiousoutput; nametemplate=%s.uu
+

@@ -1,0 +1,8 @@
+google http://www.google.com/search?q= Search the web using google
+dictionary http://dictionary.reference.com/search?db=*&q= Find a word in the dictionary
+thesaurus http://thesaurus.reference.com/search?db=roget&q= Find a word in the thesaurus
+perldoc http://perldoc.com/cgi-bin/htsearch?words= Perl Documentation search
+cpan http://search.cpan.org/search?query= CPAN Search
+vimdoc http://vimdoc.sourceforge.net/search.php?docs=both&search= the online source for Vim documentation
+gentoo http://bugs.gentoo.org/buglist.cgi?query_format=advanced&short_desc_type=allwordssubstr&short_desc= Search Gentoo Bugzilla
+
