@@ -1,5 +1,6 @@
 # UniVimer
-A very good configuration of VIM.
+A very good configuration & plugings set of VIM.
+It's easy way to set you VIM when you in a new environment.
 
 # How to use
 0, install Vim7.0+.<br>
